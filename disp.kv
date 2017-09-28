@@ -1,0 +1,18 @@
+<ObjView>:
+    orientation:"vertical"
+    obj_name:""
+    obj_time:""
+    Label:
+        markup:True
+        text:root.obj_name
+    Label:
+        markup:True
+        text:root.obj_time
+    Button:
+        id: list_button
+        text: ""
+        on_press: app.root.show_obj_list()
+
+<LocationButton>:
+    on_press: app.root.show_current_object(self.text)
+ 
