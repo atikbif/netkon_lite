@@ -1,23 +1,63 @@
-<AnalogData>:
-    orientation:"vertical"
-    
-
-<AnalogDataView>:
-    orientation:"horizontal"
-    Label:
-        id: name
-        text: "adcqwe"
-    Label:
-        id: value
-        text: "0"
-    Label:
-        id: measure_unit
-        text: "-"
+<AnalogRow@BoxLayout>:
+    canvas.before:
+        Color:
+            rgba: 0.5, 0.5, 0.5, 1
+        Rectangle:
+            size: self.size
+            pos: self.pos
+    name: ''
+    value: ''
+    measure_unit: ''
+    BoxLayout:
+        orientation:"horizontal"
+        Label:
+            text: root.name
+        Label:
+            text: root.value
+        Label:
+            text: root.measure_unit
+            
+<DiscreteRow@BoxLayout>:
+    canvas.before:
+        Color:
+            rgba: 0.5, 0.5, 0.5, 1
+        Rectangle:
+            size: self.size
+            pos: self.pos
+    name: ''
+    value: ''
+    BoxLayout:
+        orientation:"horizontal"
+        Label:
+            text: root.name
+        Label:
+            text: root.value
+            
+<MessageRow@BoxLayout>:
+    message: ''
+    type: 0,1,1,1
+    BoxLayout:
+        orientation:"horizontal"
+        Label:
+            text: root.message
+            color: root.type
 
 <ObjView>:
     orientation:"vertical"
     obj_name:""
     obj_time:""
+    tp: tp
+    
+    Button:
+        id: list_button
+        size_hint: .9, None
+        height: "50dp"
+        text: ""
+        padding: ("10dp","10dp")
+        spacing: dp(16)
+        pos_hint: {'center_x': .5, 'center_y': .5}
+        on_press: app.root.show_obj_list()
+        
     Label:
         markup:True
         text:root.obj_name
@@ -28,12 +68,69 @@
         size_hint_y: None
         height: "50dp"
         text:root.obj_time
-    Button:
-        id: list_button
-        size_hint_y: None
-        height: "50dp"
-        text: ""
-        on_press: app.root.show_obj_list()
+    
+    
+    TabbedPanel:
+        id: tp
+        size_hint: .9, 1.0
+        pos_hint: {'center_x': .5, 'center_y': .5}
+        do_default_tab: False
+
+        TabbedPanelItem:
+            rv_analog: rv_analog
+            id :adc
+            text: ''
+            
+            BoxLayout:
+                RecycleView:
+                    id: rv_analog
+                    #scroll_type: ['bars']
+                    scroll_wheel_distance: dp(114)
+                    bar_width: dp(10)
+                    viewclass: 'AnalogRow'
+                    RecycleBoxLayout:
+                        default_size: None, dp(56)
+                        default_size_hint: 1, None
+                        size_hint_y: None
+                        height: self.minimum_height
+                        orientation: 'vertical'
+                        spacing: dp(2)
+        TabbedPanelItem:
+            rv_discrete: rv_discrete
+            id :di
+            text: ''
+            BoxLayout:
+                RecycleView:
+                    id: rv_discrete
+                    #scroll_type: ['bars']
+                    scroll_wheel_distance: dp(114)
+                    bar_width: dp(10)
+                    viewclass: 'DiscreteRow'
+                    RecycleBoxLayout:
+                        default_size: None, dp(56)
+                        default_size_hint: 1, None
+                        size_hint_y: None
+                        height: self.minimum_height
+                        orientation: 'vertical'
+                        spacing: dp(2)
+        TabbedPanelItem:
+            rv_message: rv_message
+            id :msg
+            text: ''
+            BoxLayout:
+                RecycleView:
+                    id: rv_message
+                    #scroll_type: ['bars']
+                    scroll_wheel_distance: dp(114)
+                    bar_width: dp(10)
+                    viewclass: 'MessageRow'
+                    RecycleBoxLayout:
+                        default_size: None, dp(56)
+                        default_size_hint: 1, None
+                        size_hint_y: None
+                        height: self.minimum_height
+                        orientation: 'vertical'
+                        spacing: dp(2)
 
 <LocationButton>:
     on_press: app.root.show_current_object(self.text)

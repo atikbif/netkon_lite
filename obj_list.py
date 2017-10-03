@@ -6,67 +6,50 @@ from kivy.uix.listview import ListItemButton, ListView
 from kivy.clock import Clock
 from kivy.adapters.models import SelectableDataItem
 import random
-from kivy.uix.listview import ListItemButton
 import re
 from kivy.factory import Factory
-from kivy.uix.label import Label
 from kivy.core.window import Window
 
-
-class AnalogDataView(BoxLayout):
-    pass
-
-class AnalogData(BoxLayout):
-    def __init__(self, obj_name,**kwargs):
-        super(AnalogData, self).__init__(**kwargs)
-        self._adc = []
-        self._name = obj_name
-        
-        self._ob = get_ob_by_name(obj_name)
-        if self._ob is not None:
-            adc_number = self._ob.get_adc_number()
-        
-            self.add_widget(Label(text="Аналоговые данные:"))
-            for i in range(adc_number):
-                adc_ob = self._ob.get_adc_data(i)
-                adc_widget = Factory.AnalogDataView()
-                adc_widget.ids["name"].text = adc_ob["name"]
-                adc_widget.ids["value"].text = str(adc_ob["value"])
-                adc_widget.ids["measure_unit"].text = adc_ob["measure_unit"]
-                self._adc.append(adc_widget)
-                self.add_widget(adc_widget)
-            Clock.schedule_interval(self.update_data, 10)
-    def update_data(self,dt):
-            for i in range(len(self._adc)):
-                adc_widget = self._adc[i]
-                adc_ob = self._ob.get_adc_data(i)
-                adc_widget.ids["name"].text = adc_ob["name"]
-                adc_widget.ids["value"].text = str(adc_ob["value"])
-                adc_widget.ids["measure_unit"].text = adc_ob["measure_unit"]
+from random import sample
+from string import ascii_lowercase
 
 class ObjView(BoxLayout):
     def __init__(self, obj_name, **kwargs):
         super(ObjView, self).__init__(**kwargs)
         self._name = obj_name
         self._ob = get_ob_by_name(obj_name)
-        self.add_widget(AnalogData(obj_name))
+        self.ids.adc.text = "аналоговые"
+        self.ids.di.text = "дискретные"
+        self.ids.msg.text = "сообщения"
+        self.ids.rv_analog.data = [{'name': self._ob.get_adc_data(x)["name"],'value':str(self._ob.get_adc_data(x)["value"]),'measure_unit':self._ob.get_adc_data(x)["measure_unit"]}
+                        for x in range(self._ob.get_adc_number())]
+        self.ids.rv_discrete.data = [{'name': self._ob.get_di_data(x)["name"],'value':str(self._ob.get_di_data(x)["value"])}
+                        for x in range(self._ob.get_di_number())]
+        self.ids.rv_message.data = [{'message': self._ob.get_msg_data(x)["message"],'type':self._ob.get_msg_data(x)["type"]}
+                        for x in range(self._ob.get_msg_number())]
         Clock.schedule_interval(self.update_test, 10)
         
     def update_test(self,dt):
         if self._ob is not None:
-            self.obj_time = self._ob.time_of_update.strftime("%d-%m-%Y %H:%M:%S")
+            self.obj_time = r"[color=C0C0C0]время:" + self._ob.time_of_update.strftime("%d-%m-%Y %H:%M:%S") + r"[/color]"
+            self.ids.rv_analog.data = [{'name': self._ob.get_adc_data(x)["name"],'value':str(self._ob.get_adc_data(x)["value"]),'measure_unit':self._ob.get_adc_data(x)["measure_unit"]}
+                        for x in range(self._ob.get_adc_number())]
+            self.ids.rv_discrete.data = [{'name': self._ob.get_di_data(x)["name"],'value':str(self._ob.get_di_data(x)["value"])}
+                        for x in range(self._ob.get_di_number())]
+            self.ids.rv_message.data = [{'message': self._ob.get_msg_data(x)["message"],'type':self._ob.get_msg_data(x)["type"]}
+                        for x in range(self._ob.get_msg_number())]
 
 
 class DispRoot(BoxLayout):
     def __init__(self, **kwargs):
         super(DispRoot, self).__init__(**kwargs)
-        Window.bind(on_keyboard=self.key_input)
+        #Window.bind(on_keyboard=self.key_input)
         self._view = "obj_list"
         self.add_widget(ObjListView())
     def show_current_object(self, name):
         self._view = "object"
         obj_name = re.search(r'\[b\].+\[/b\]',name)
-        obj_time = re.search(r'\[color=C0C0C0\] время:.+\[/color\]',name)
+        obj_time = re.search(r'\[color=.+\] время:.+\[/color\]',name)
         
 
         self.clear_widgets()
@@ -103,6 +86,8 @@ class ObjState(SelectableDataItem):
         self._time_of_update = None
         self._color = "gray"
         self._adc_data = []
+        self._di_data = []
+        self._msg_data = []
         
     @property
     def color(self):
@@ -143,6 +128,28 @@ class ObjState(SelectableDataItem):
     def update_adc_data(self,num,value):
         if num < len(self._adc_data):
             self._adc_data[num]["value"]=value
+            
+    def add_di_data(self,value):
+        self._di_data.append(value)
+        
+    def get_di_number(self):
+        return len(self._di_data)
+        
+    def get_di_data(self,num):
+        return None if num >= len(self._di_data) else self._di_data[num]
+        
+    def update_di_data(self,num,value):
+        if num < len(self._di_data):
+            self._di_data[num]["value"]=value
+            
+    def get_msg_number(self):
+        return len(self._msg_data)
+        
+    def get_msg_data(self,num):
+        return None if num >= len(self._msg_data) else self._msg_data[num]
+        
+    def upd_msg_data(self,messages):
+        self._msg_data = messages
         
 def readObjectsFromFile():
     ob_names = ("Владимир, Почаевская 10","Владимир, Лермонтова 17", "Владимир, Мира 8", "Суздаль, Центральная 15", "Суздаль, Гороховая 3", "Ковров, Пушкина 56", "Юрьев-Польский, Солнечная 27")
@@ -150,8 +157,16 @@ def readObjectsFromFile():
     for i in range(len(ob_names)):
         ob = ObjState(ob_names[i])
         ob.time_of_update = datetime.now()
-        for j in range(i+1):
-            ob.add_adc_data({"name":"adc"+str(j+1),"value":j,"measure_unit":"*"*(j+1)})
+        for j in range(random.randint(0,50)):
+            ob.add_adc_data({"name":"adc"+str(j+1),"value":j,"measure_unit":"*"})
+            
+        for j in range(random.randint(0,50)):
+            ob.add_di_data({"name":"di"+str(j+1),"value":random.randint(0,1)})
+           
+            
+        msg_list = list([{"message":"".join(sample(ascii_lowercase, 15)),"type":{"red":[1.,0.,0.,1.],"green":[0.,1.,0.,1.],"yellow":[0.7,0.5,0.1,1.]}[random.choice(("red","green","yellow"))]} 
+        for x in range(random.randint(0,50))])  
+        ob.upd_msg_data(msg_list)
         res_list.append(ob)
     
     return sorted(res_list,key=lambda ob: ob.name)
@@ -174,6 +189,12 @@ def update_ob_data(dt):
         for j in range(ob.get_adc_number()):
             adc = ob.get_adc_data(j)
             ob.update_adc_data(j,adc["value"]+1)
+        for j in range(ob.get_di_number()):
+            di = ob.get_di_data(j)
+            ob.update_di_data(j,random.randint(0,1))
+        msg_list = list([{"message":"".join(sample(ascii_lowercase, 15)),"type":{"red":[1.,0.,0.,1.],"green":[0.,1.,0.,1.],"yellow":[0.7,0.5,0.1,1.]}[random.choice(("red","green","yellow"))]} 
+        for x in range(random.randint(0,50))])  
+        ob.upd_msg_data(msg_list)
         objList[i] = ob    
     
 update_ob_data(None)
