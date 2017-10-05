@@ -152,20 +152,20 @@ class ObjState(SelectableDataItem):
         self._msg_data = messages
         
 def readObjectsFromFile():
-    ob_names = ("Владимир, Почаевская 10","Владимир, Лермонтова 17", "Владимир, Мира 8", "Суздаль, Центральная 15", "Суздаль, Гороховая 3", "Ковров, Пушкина 56", "Юрьев-Польский, Солнечная 27")
+    ob_names = ("Владимир, Лермонтова 17", "Суздаль, Центральная 15", "Суздаль, Гороховая 3", "Ковров, Пушкина 56", "Юрьев-Польский, Солнечная 27")
     res_list = []
     for i in range(len(ob_names)):
         ob = ObjState(ob_names[i])
         ob.time_of_update = datetime.now()
-        for j in range(random.randint(0,50)):
-            ob.add_adc_data({"name":"adc"+str(j+1),"value":j,"measure_unit":"*"})
+        for j in range(random.randint(1,10)):
+            ob.add_adc_data({"name":"    adc"+str(j+1)+":","value":j,"measure_unit":"*"})
             
-        for j in range(random.randint(0,50)):
-            ob.add_di_data({"name":"di"+str(j+1),"value":random.randint(0,1)})
+        for j in range(random.randint(1,10)):
+            ob.add_di_data({"name":"    di"+str(j+1)+":","value":random.randint(0,1)})
            
             
         msg_list = list([{"message":"".join(sample(ascii_lowercase, 15)),"type":{"red":[1.,0.,0.,1.],"green":[0.,1.,0.,1.],"yellow":[0.7,0.5,0.1,1.]}[random.choice(("red","green","yellow"))]} 
-        for x in range(random.randint(0,50))])  
+        for x in range(random.randint(0,5))])  
         ob.upd_msg_data(msg_list)
         res_list.append(ob)
     
@@ -193,7 +193,7 @@ def update_ob_data(dt):
             di = ob.get_di_data(j)
             ob.update_di_data(j,random.randint(0,1))
         msg_list = list([{"message":"".join(sample(ascii_lowercase, 15)),"type":{"red":[1.,0.,0.,1.],"green":[0.,1.,0.,1.],"yellow":[0.7,0.5,0.1,1.]}[random.choice(("red","green","yellow"))]} 
-        for x in range(random.randint(0,50))])  
+        for x in range(random.randint(0,5))])  
         ob.upd_msg_data(msg_list)
         objList[i] = ob    
     

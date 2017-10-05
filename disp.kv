@@ -2,36 +2,60 @@
     canvas.before:
         Color:
             rgba: 0.5, 0.5, 0.5, 1
-        Rectangle:
-            size: self.size
+        RoundedRectangle:
             pos: self.pos
+            size: self.size
+            radius: [10,]
     name: ''
     value: ''
     measure_unit: ''
     BoxLayout:
         orientation:"horizontal"
         Label:
+            size_hint_x:0.7
             text: root.name
+            halign: 'left'
+            valign: 'center'
+            text_size: self.size
         Label:
+            size_hint_x:0.2
+            halign: 'left'
+            valign: 'center'
+            text_size: self.size
             text: root.value
         Label:
+            size_hint_x:0.1
+            halign: 'left'
+            valign: 'center'
+            text_size: self.size
             text: root.measure_unit
             
 <DiscreteRow@BoxLayout>:
     canvas.before:
         Color:
             rgba: 0.5, 0.5, 0.5, 1
-        Rectangle:
-            size: self.size
+        RoundedRectangle:
             pos: self.pos
+            size: self.size
+            radius: [10,]
     name: ''
     value: ''
     BoxLayout:
         orientation:"horizontal"
         Label:
+            size_hint_x:0.7
             text: root.name
+            halign: 'left'
+            valign: 'center'
+            text_size: self.size
+        Image:
+            allow_stretch: True
+            size_hint_x: None
+            width: "40dp"
+            source: "off.png" if root.value=="0" else "on.png"
         Label:
-            text: root.value
+            size_hint_x:0.1
+            text:" "
             
 <MessageRow@BoxLayout>:
     message: ''
