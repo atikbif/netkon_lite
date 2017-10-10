@@ -1,3 +1,45 @@
+# File name:disp.kv
+#:kivy 1.10.0
+
+<ListObItem@BoxLayout>:
+    name: ''
+    upd_time: ''
+    ob_color: (0.95,0.95,0.95,1.0)
+    BoxLayout:
+        orientation:"horizontal"
+        Button:
+            background_color: root.ob_color
+            text_size: self.size
+            halign: 'left'
+            valign: 'center'
+            markup: True
+            text: '[b]   ' + root.name + '[/b]\n   ' + '[color=C0C0C0] ' + root.upd_time + '[/color]'
+            on_press: app.root.show_current_object(self.text)
+    
+<ObjListView>: 
+    orientation:"vertical"
+    Label:
+        id: header
+        markup:True
+        text: ""
+        size_hint_y: None
+        height: "50dp"
+    BoxLayout:
+        RecycleView:
+            id: rv_object
+            scroll_wheel_distance: dp(114)
+            bar_width: dp(10)
+            viewclass: 'ListObItem'
+            RecycleBoxLayout:
+                default_size: None, dp(100)
+                default_size_hint: 1, None
+                size_hint_y: None
+                height: self.minimum_height
+                orientation: 'vertical'
+                spacing: dp(2)
+    
+    
+
 <AnalogRow@BoxLayout>:
     canvas.before:
         Color:
@@ -12,7 +54,7 @@
     BoxLayout:
         orientation:"horizontal"
         Label:
-            size_hint_x:0.7
+            size_hint_x:0.6
             text: root.name
             halign: 'left'
             valign: 'center'
@@ -24,7 +66,7 @@
             text_size: self.size
             text: root.value
         Label:
-            size_hint_x:0.1
+            size_hint_x:0.2
             halign: 'left'
             valign: 'center'
             text_size: self.size
@@ -70,23 +112,30 @@
     orientation:"vertical"
     obj_name:""
     obj_time:""
+    ob_color: (0.5, 0.5, 0.5, 1)
     tp: tp
+    spacing: dp(10)
     
     Button:
+        background_color: 0.5, 0.5, 0.5, 1
         id: list_button
         size_hint: .9, None
-        height: "50dp"
+        height: "60dp"
         text: ""
         padding: ("10dp","10dp")
         spacing: dp(16)
         pos_hint: {'center_x': .5, 'center_y': .5}
         on_press: app.root.show_obj_list()
         
-    Label:
+    Button:
+        background_color: root.ob_color
+        size_hint: .9, None
+        height: "60dp"
+        padding: ("10dp","10dp")
+        spacing: dp(16)
+        pos_hint: {'center_x': .5, 'center_y': .5}
         markup:True
         text:root.obj_name
-        size_hint_y: None
-        height: "50dp"
     Label:
         markup:True
         size_hint_y: None
@@ -108,7 +157,6 @@
             BoxLayout:
                 RecycleView:
                     id: rv_analog
-                    #scroll_type: ['bars']
                     scroll_wheel_distance: dp(114)
                     bar_width: dp(10)
                     viewclass: 'AnalogRow'
@@ -126,7 +174,6 @@
             BoxLayout:
                 RecycleView:
                     id: rv_discrete
-                    #scroll_type: ['bars']
                     scroll_wheel_distance: dp(114)
                     bar_width: dp(10)
                     viewclass: 'DiscreteRow'
@@ -144,7 +191,6 @@
             BoxLayout:
                 RecycleView:
                     id: rv_message
-                    #scroll_type: ['bars']
                     scroll_wheel_distance: dp(114)
                     bar_width: dp(10)
                     viewclass: 'MessageRow'
@@ -156,6 +202,4 @@
                         orientation: 'vertical'
                         spacing: dp(2)
 
-<LocationButton>:
-    on_press: app.root.show_current_object(self.text)
  
