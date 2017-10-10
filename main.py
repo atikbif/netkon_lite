@@ -11,8 +11,8 @@ import random
 import re
 from kivy.factory import Factory
 from kivy.uix.label import Label
-import paho.mqtt.client as mqtt
-#from kivy.core.window import Window
+import threading
+import paho.mqtt.subscribe as subscribe
 
 from random import sample
 from string import ascii_lowercase
@@ -59,9 +59,12 @@ class ObjView(BoxLayout):
 
 
 class DispRoot(BoxLayout):
+    stop = threading.Event()
     def __init__(self, **kwargs):
         super(DispRoot, self).__init__(**kwargs)
-        #Window.bind(on_keyboard=self.key_input)
+        
+        threading.Thread(target=self.subscribe_mqtt).start()
+        
         self._view = "obj_list"
         self.add_widget(Factory.ObjListView())
     def show_current_object(self, name):       
@@ -86,15 +89,44 @@ class DispRoot(BoxLayout):
         ob_list = ObjListView()
         self.add_widget(ob_list)
         
-    # def key_input(self, window, key, scancode, codepoint, modifier):
-        # if key == 27:
-            # if self._view=="object":
-                # self.show_obj_list()
-            # else:
-                # app.stop()
-            # return True # override the default behaviour
-        # else: # the key now does nothing
-            # return False
+    def subscribe_mqtt(self):
+        while True:
+            if self.stop.is_set():
+                return
+            cnt = len(objList)
+            if cnt:
+                topic_list = [ob.topic for ob in objList if len(ob.topic)>=1]
+                try:
+                    msg = subscribe.simple(topic_list, hostname="m13.cloudmqtt.com",port=19363,auth= {'username':"kontel_plc", 'password':"plc"},client_id="".join(sample(ascii_lowercase, 15)))
+                    ob = get_ob_by_topic(msg.topic)
+                    if ob is not None:
+                        ob.time_of_update = datetime.now()
+                        for j in range(ob.get_adc_number()):
+                            adc = ob.get_adc_data(j)
+                            if type(msg.payload[0])!=int:
+                                value = ord(msg.payload[13+j*2]) + ord(msg.payload[14+j*2])*256
+                            else:
+                                value = msg.payload[13+j*2] + msg.payload[14+j*2]*256
+                            value *= adc["coeff"]
+                            ob.update_adc_data(j,value)
+                        ob.color = "green"
+                    for i in range(len(objList)):
+                        ob = objList[i]
+                        if ob.mqtt_server is None:
+                           ob.time_of_update = datetime.now()
+                           ob.color = random.choice(("red","green","yellow","gray"))
+                           for j in range(ob.get_adc_number()):
+                               adc = ob.get_adc_data(j)
+                               ob.update_adc_data(j,adc["value"]+1)
+                           for j in range(ob.get_di_number()):
+                               ob.update_di_data(j,random.randint(0,1))
+                           msg_list = list([{"message":"".join(sample(ascii_lowercase, 15)),"type":{"red":[1.,0.,0.,1.],"green":[0.,1.,0.,1.],"yellow":[0.7,0.5,0.1,1.]}[random.choice(("red","green","yellow"))]} 
+                           for x in range(random.randint(0,5))])  
+                           ob.upd_msg_data(msg_list)
+                           #objList[i] = ob  
+                except Exception as ex:
+                    pass
+                    #print(ex)
 
 class ObjState():
     def __init__(self, name):
@@ -104,7 +136,7 @@ class ObjState():
         self._adc_data = []
         self._di_data = []
         self._msg_data = []
-        self._topic = name
+        self._topic = ""
         self._mqtt_server = None
         self._mqtt_port = 0
         self._mqtt_user_name = ""
@@ -250,38 +282,6 @@ def readObjectsFromFile():
 
 objList =  readObjectsFromFile() 
 
-def init_mqtt():
-    for ob in objList:
-        if ob.mqtt_server is not None:
-            mqttc = mqtt.Client()
-            mqtt_clients.append(mqttc)
-        
-            # Assign event callbacks
-            mqttc.on_message = mqtt_message
-        
-            # Connect with MQTT Broker
-            mqttc.username_pw_set(ob.mqtt_user_name, ob.mqtt_password)
-            mqttc.connect(ob.mqtt_server, ob.mqtt_port, 45)
-            mqttc.subscribe(ob.topic, 0)
-        
-def mqtt_message(mosq, obj, msg):
-    ob = get_ob_by_topic(msg.topic)
-    if ob is not None:
-        ob.time_of_update = datetime.now()
-        for j in range(ob.get_adc_number()):
-            adc = ob.get_adc_data(j)
-            if type(msg.payload[0])!=int:
-                value = ord(msg.payload[13+j*2]) + ord(msg.payload[14+j*2])*256
-            else:
-                value = msg.payload[13+j*2] + msg.payload[14+j*2]*256
-                print()
-            value *= adc["coeff"]
-            ob.update_adc_data(j,value)
-        ob.color = "green"
-
-    
-init_mqtt()
-
 def get_ob_by_name(obj_name) :
     for i in range(len(objList)):
         if objList[i].name == obj_name:
@@ -294,32 +294,14 @@ def get_ob_by_topic(topic):
             return objList[i]
     return None
     
-def update_ob_data(dt):
-    for mqttc in mqtt_clients:
-        mqttc.loop()
-    # for i in range(len(objList)):
-        # ob = objList[i]
-        # if ob.mqtt_server is None:
-           # ob.time_of_update = datetime.now()
-           # ob.color = random.choice(("red","green","yellow","gray"))
-           # for j in range(ob.get_adc_number()):
-               # adc = ob.get_adc_data(j)
-               # ob.update_adc_data(j,adc["value"]+1)
-           # for j in range(ob.get_di_number()):
-               # ob.update_di_data(j,random.randint(0,1))
-           # msg_list = list([{"message":"".join(sample(ascii_lowercase, 15)),"type":{"red":[1.,0.,0.,1.],"green":[0.,1.,0.,1.],"yellow":[0.7,0.5,0.1,1.]}[random.choice(("red","green","yellow"))]} 
-           # for x in range(random.randint(0,5))])  
-           # ob.upd_msg_data(msg_list)
-           # objList[i] = ob   
-           
-Clock.schedule_interval(update_ob_data, 5)
-            
 class DispApp(App):
+    
+    def on_stop(self):
+        self.root.stop.set()
     def build(self):
         return DispRoot()
     def on_pause(self):
         return True
-
     
 
 if __name__=="__main__":
