@@ -1,0 +1,78 @@
+<?xml version="1.0"?>
+<data>
+    <mqtt server="m13.cloudmqtt.com" port="19363" user="kontel_plc" password="plc"></mqtt>
+    <object name="Владимир, Лермонтова 17" topic="">
+        <adc name="Т помещения 1" measure_unit="^C" coeff="0.1"></adc>
+        <adc name="Т помещения 2" measure_unit="^C" coeff="0.1"></adc>
+        <adc name="Т помещения 3" measure_unit="^C" coeff="0.1"></adc>
+        <adc name="Т помещения 4" measure_unit="^C" coeff="0.1"></adc>
+        <adc name="Т помещения 5" measure_unit="^C" coeff="0.1"></adc>
+        <di name="Пожар"></di>
+        <di name="Охрана"></di>
+        <di name="Электропитание"></di>
+        <di name="Сигнализация"></di>
+    </object>
+    <object name="Суздаль, Центральная 15"  topic="">
+        <adc name="Параметр 1" measure_unit="^C" coeff="0.1"></adc>
+        <adc name="Параметр 2" measure_unit="^C" coeff="0.1"></adc>
+        <di name="Сигнал 1"></di>
+        <di name="Сигнал 2"></di>
+        <di name="Сигнал 3"></di>
+    </object>
+    <object name="Суздаль, Гороховая 3" topic="">
+        <adc name="Параметр 1" measure_unit="^C" coeff="0.1"></adc>
+        <adc name="Параметр 2" measure_unit="^C" coeff="0.1"></adc>
+        <adc name="Параметр 3" measure_unit="^C" coeff="0.1"></adc>
+        <adc name="Параметр 4" measure_unit="^C" coeff="0.1"></adc>
+        <di name="Сигнал 1"></di>
+        <di name="Сигнал 2"></di>
+        <di name="Сигнал 3"></di>
+        <di name="Сигнал 4"></di>
+        <di name="Сигнал 5"></di>
+        <di name="Сигнал 6"></di>
+    </object>
+    <object name="Ковров, Пушкина 56" topic="">
+        <adc name="Параметр 1" measure_unit="^C" coeff="0.1"></adc>
+        <adc name="Параметр 2" measure_unit="^C" coeff="0.1"></adc>
+        <adc name="Параметр 3" measure_unit="^C" coeff="0.1"></adc>
+        <adc name="Параметр 4" measure_unit="^C" coeff="0.1"></adc>
+        <adc name="Параметр 5" measure_unit="^C" coeff="0.1"></adc>
+        <di name="Сигнал 1"></di>
+        <di name="Сигнал 2"></di>
+        <di name="Сигнал 3"></di>
+        <di name="Сигнал 4"></di>
+        <di name="Сигнал 5"></di>
+        <di name="Сигнал 6"></di>
+        <di name="Сигнал 7"></di>
+    </object>
+    <object name="Юрьев-Польский, Солнечная 27"  topic="4385017381/all">
+        <adc name="Параметр 1" measure_unit="^C" coeff="0.1"></adc>
+        <adc name="Параметр 2" measure_unit="^C" coeff="0.1"></adc>
+        <adc name="Параметр 3" measure_unit="^C" coeff="0.1"></adc>
+        <adc name="Параметр 4" measure_unit="^C" coeff="0.1"></adc>
+        <adc name="Параметр 5" measure_unit="^C" coeff="0.1"></adc>
+        <adc name="Параметр 6" measure_unit="^C" coeff="0.1"></adc>
+        <adc name="Параметр 7" measure_unit="^C" coeff="0.1"></adc>
+        <adc name="Параметр 8" measure_unit="^C" coeff="0.1"></adc>
+        <di name="Сигнал 1"></di>
+        <di name="Сигнал 2"></di>
+        <di name="Сигнал 3"></di>
+        <di name="Сигнал 4"></di>
+        <di name="Сигнал 5"></di>
+        <di name="Сигнал 6"></di>
+        <di name="Сигнал 7"></di>
+        <di name="Сигнал 8"></di>
+        <di name="Сигнал 9"></di>
+        <di name="Сигнал 10"></di>
+        <di name="Сигнал 11"></di>
+        <di name="Сигнал 12"></di>
+        <msg name="Сообщение 1" type="green"></msg>
+        <msg name="Сообщение 2" type="green"></msg>
+        <msg name="Сообщение 3" type="yellow"></msg>
+        <msg name="Сообщение 4" type="yellow"></msg>
+        <msg name="Сообщение 5" type="red"></msg>
+        <msg name="Сообщение 6" type="red"></msg>
+        <msg name="Сообщение 7" type="red"></msg>
+        <msg name="Сообщение 8" type="red"></msg>
+    </object>
+</data>

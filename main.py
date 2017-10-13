@@ -17,6 +17,20 @@ import paho.mqtt.subscribe as subscribe
 from random import sample
 from string import ascii_lowercase
 
+import xml.etree.ElementTree as ET
+import sys
+
+mqtt_server =""
+mqtt_port = 0
+mqtt_user = ""
+mqtt_password = ""
+objList =  [] 
+topicDict = {}
+mqtt_clients = []
+
+PY2 = sys.version_info[0] == 2
+
+
 class ObjListView(BoxLayout):
     def __init__(self, **kwargs):
         super(ObjListView, self).__init__(**kwargs)
@@ -89,6 +103,42 @@ class DispRoot(BoxLayout):
         ob_list = ObjListView()
         self.add_widget(ob_list)
         
+    def update_ob_data(self,ob,mqtt_data):
+        ob.time_of_update = datetime.now()
+        for j in range(ob.get_adc_number()):
+            adc = ob.get_adc_data(j)
+            if PY2:
+                value = ord(mqtt_data[12+j*2])*256 + ord(mqtt_data[13+j*2])
+            else:
+                value = mqtt_data[12+j*2]*256 + mqtt_data[13+j*2]
+            value *= adc["coeff"]
+            ob.update_adc_data(j,value)
+        for j in range(ob.get_di_number()):
+            byte_num = 4 + (j//8)
+            bit_num = j%8
+            if PY2:
+                value = ord(mqtt_data[byte_num]) & (1 << bit_num)
+            else:
+                value = mqtt_data[byte_num] & (1 << bit_num)
+            ob.update_di_data(j,value)
+        color = "green"
+        msg_list = []
+        for j in range(ob.get_msg_conf_number()):
+            byte_num = 72 + 4 + (j//8)
+            bit_num = j%8
+            if PY2:
+                value = ord(mqtt_data[byte_num]) & (1 << bit_num)
+            else:
+                value = mqtt_data[byte_num] & (1 << bit_num)
+            if value:
+                msg = ob.get_msg_conf(j)
+                if len(msg):
+                    msg_list.append({"message":msg["name"],"type":{"red":[1.,0.,0.,1.],"green":[0.,1.,0.,1.],"yellow":[0.7,0.5,0.1,1.]}[msg["type"]]})
+                    if msg["type"]=="red": color="red"
+                    if msg["type"]=="yellow" and color!="red": color="yellow"
+        ob.upd_msg_data(msg_list) 
+        ob.color = color 
+        
     def subscribe_mqtt(self):
         while True:
             if self.stop.is_set():
@@ -97,36 +147,12 @@ class DispRoot(BoxLayout):
             if cnt:
                 topic_list = [ob.topic for ob in objList if len(ob.topic)>=1]
                 try:
-                    msg = subscribe.simple(topic_list, hostname="m13.cloudmqtt.com",port=19363,auth= {'username':"kontel_plc", 'password':"plc"},client_id="".join(sample(ascii_lowercase, 15)))
+                    msg = subscribe.simple(topic_list, hostname=mqtt_server,port=mqtt_port,auth= {'username':mqtt_user, 'password':mqtt_password},client_id="netkon"+"".join(sample(ascii_lowercase, 15)))
                     ob = get_ob_by_topic(msg.topic)
                     if ob is not None:
-                        ob.time_of_update = datetime.now()
-                        for j in range(ob.get_adc_number()):
-                            adc = ob.get_adc_data(j)
-                            if type(msg.payload[0])!=int:
-                                value = ord(msg.payload[13+j*2]) + ord(msg.payload[14+j*2])*256
-                            else:
-                                value = msg.payload[13+j*2] + msg.payload[14+j*2]*256
-                            value *= adc["coeff"]
-                            ob.update_adc_data(j,value)
-                        ob.color = "green"
-                    for i in range(len(objList)):
-                        ob = objList[i]
-                        if ob.mqtt_server is None:
-                           ob.time_of_update = datetime.now()
-                           ob.color = random.choice(("red","green","yellow","gray"))
-                           for j in range(ob.get_adc_number()):
-                               adc = ob.get_adc_data(j)
-                               ob.update_adc_data(j,adc["value"]+1)
-                           for j in range(ob.get_di_number()):
-                               ob.update_di_data(j,random.randint(0,1))
-                           msg_list = list([{"message":"".join(sample(ascii_lowercase, 15)),"type":{"red":[1.,0.,0.,1.],"green":[0.,1.,0.,1.],"yellow":[0.7,0.5,0.1,1.]}[random.choice(("red","green","yellow"))]} 
-                           for x in range(random.randint(0,5))])  
-                           ob.upd_msg_data(msg_list)
-                           #objList[i] = ob  
+                        self.update_ob_data(ob,msg.payload)
                 except Exception as ex:
                     pass
-                    #print(ex)
 
 class ObjState():
     def __init__(self, name):
@@ -136,44 +162,9 @@ class ObjState():
         self._adc_data = []
         self._di_data = []
         self._msg_data = []
+        self._msg_conf =[]
         self._topic = ""
-        self._mqtt_server = None
-        self._mqtt_port = 0
-        self._mqtt_user_name = ""
-        self._mqtt_password = ""
-        
-    @property
-    def mqtt_user_name(self):
-        return self._mqtt_user_name
-    
-    @mqtt_user_name.setter
-    def mqtt_user_name(self,value):
-        self._mqtt_user_name = value
-        
-    @property
-    def mqtt_password(self):
-        return self._mqtt_password
-    
-    @mqtt_password.setter
-    def mqtt_password(self,value):
-        self._mqtt_password = value
-        
-    @property
-    def mqtt_port(self):
-        return self._mqtt_port
-    
-    @mqtt_port.setter
-    def mqtt_port(self,value):
-        self._mqtt_port = value
-        
-    @property
-    def mqtt_server(self):
-        return self._mqtt_server
-    
-    @mqtt_server.setter
-    def mqtt_server(self,value):
-        self._mqtt_server = value
-        
+      
     @property
     def topic(self):
         return self._topic
@@ -244,43 +235,63 @@ class ObjState():
     def upd_msg_data(self,messages):
         self._msg_data = messages
         
-topicDict = {}
-mqtt_clients = []
+    def set_msg_conf(self,msg_conf):
+        self._msg_conf = msg_conf
+        
+    def get_msg_conf(self,num):
+        if num<len(self._msg_conf):
+            return {"name":self._msg_conf[num]["name"],"type":self._msg_conf[num]["type"]}
+        else:
+            return {}
+    def get_msg_conf_number(self):
+        return len(self._msg_conf)
         
 def readObjectsFromFile():
-    ob_names = ("Владимир, Лермонтова 17", "Суздаль, Центральная 15", "Суздаль, Гороховая 3", "Ковров, Пушкина 56", "Юрьев-Польский, Солнечная 27")
+    global mqtt_server
+    global mqtt_port
+    global mqtt_user
+    global mqtt_password
+    
     res_list = []
     
-    ob = ObjState("Контэл - переговорная")
-    ob.time_of_update = None#datetime.now()
-    ob.add_adc_data({"name":"    Т помещения","value":0,"measure_unit":"град.","coeff":0.1})
-    ob.topic = "4385017381/all"
-    ob.mqtt_server = "m13.cloudmqtt.com" 
-    ob.mqtt_port = 19363
-    ob.mqtt_user_name = "kontel_plc"
-    ob.mqtt_password = "plc"
-    topicDict[ob.topic]=ob
-    res_list.append(ob)
-    
-    for i in range(len(ob_names)):
-        ob = ObjState(ob_names[i])
-        ob.time_of_update = None
-        for j in range(random.randint(1,10)):
-            ob.add_adc_data({"name":"    adc"+str(j+1)+":","value":j,"measure_unit":"*","coeff":0.1})
-            
-        for j in range(random.randint(1,10)):
-            ob.add_di_data({"name":"    di"+str(j+1)+":","value":random.randint(0,1)})
-           
-            
-        msg_list = list([{"message":"".join(sample(ascii_lowercase, 15)),"type":{"red":[1.,0.,0.,1.],"green":[0.,1.,0.,1.],"yellow":[0.7,0.5,0.1,1.]}[random.choice(("red","green","yellow"))]} 
-        for x in range(random.randint(0,5))])  
-        ob.upd_msg_data(msg_list)
-        topicDict[ob.topic] = ob
-        res_list.append(ob)
-    
-    return sorted(res_list,key=lambda ob: ob.name)
+    try:
+        tree = ET.parse(App.get_running_app().user_data_dir + '/conf.xml')
+        root = tree.getroot()
+        
+        for xml_mqtt in root.findall('mqtt'):
+            mqtt_server = xml_mqtt.attrib["server"].encode('utf-8') if PY2 else xml_mqtt.attrib["server"]
+            mqtt_port = int(xml_mqtt.attrib["port"].encode('utf-8')) if PY2 else int(xml_mqtt.attrib["port"])
+            mqtt_user = xml_mqtt.attrib["user"].encode('utf-8') if PY2 else xml_mqtt.attrib["user"]
+            mqtt_password = xml_mqtt.attrib["password"].encode('utf-8') if PY2 else xml_mqtt.attrib["password"]
+            break
 
-objList =  readObjectsFromFile() 
+        for xml_ob in root.findall('object'):
+            ob = ObjState(xml_ob.attrib["name"].encode('utf-8')) if PY2 else ObjState(xml_ob.attrib["name"])
+            ob.time_of_update = None
+            ob.topic = xml_ob.attrib["topic"].encode('utf-8') if PY2 else xml_ob.attrib["topic"]
+            if len(ob.topic): topicDict[ob.topic] = ob
+            for adc in xml_ob.findall('adc'):
+                name = adc.attrib["name"].encode('utf-8') if PY2 else adc.attrib["name"]
+                meas = adc.attrib["measure_unit"].encode('utf-8') if PY2 else adc.attrib["measure_unit"]
+                coeff = adc.attrib["coeff"].encode('utf-8') if PY2 else adc.attrib["coeff"]
+                ob.add_adc_data({"name":"    "+name+":","value":0,"measure_unit":meas,"coeff":float(coeff)})
+            for di in xml_ob.findall('di'):
+                name = di.attrib["name"].encode('utf-8') if PY2 else di.attrib["name"]
+                ob.add_di_data({"name":"    "+name+":","value":0})
+            msg_conf = []
+            for msg in xml_ob.findall('msg'):
+                name = msg.attrib["name"].encode('utf-8') if PY2 else msg.attrib["name"]
+                type = msg.attrib["type"].encode('utf-8') if PY2 else msg.attrib["type"]
+                msg_conf.append({"name":name,"type":type})
+            ob.set_msg_conf(msg_conf)
+            res_list.append(ob)
+            
+    except Exception as ex:
+        ob = ObjState(str(ex))
+        res_list.append(ob)
+        #print(str(ex))
+   
+    return sorted(res_list,key=lambda ob: ob.name)   
 
 def get_ob_by_name(obj_name) :
     for i in range(len(objList)):
@@ -294,16 +305,18 @@ def get_ob_by_topic(topic):
             return objList[i]
     return None
     
-class DispApp(App):
+class NetkonApp(App):
     
     def on_stop(self):
         self.root.stop.set()
     def build(self):
+        global objList
+        objList =  readObjectsFromFile()
         return DispRoot()
     def on_pause(self):
         return True
     
 
 if __name__=="__main__":
-    app = DispApp()
+    app = NetkonApp()
     app.run()

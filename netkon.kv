@@ -1,0 +1,205 @@
+# File name:disp.kv
+#:kivy 1.10.0
+
+<ListObItem@BoxLayout>:
+    name: ''
+    upd_time: ''
+    ob_color: (0.95,0.95,0.95,1.0)
+    BoxLayout:
+        orientation:"horizontal"
+        Button:
+            background_color: root.ob_color
+            text_size: self.size
+            halign: 'left'
+            valign: 'center'
+            markup: True
+            text: '[b]   ' + root.name + '[/b]\n   ' + '[color=C0C0C0] ' + root.upd_time + '[/color]'
+            on_press: app.root.show_current_object(self.text)
+    
+<ObjListView>: 
+    orientation:"vertical"
+    Label:
+        id: header
+        markup:True
+        text: ""
+        size_hint_y: None
+        height: "50dp"
+    BoxLayout:
+        RecycleView:
+            id: rv_object
+            scroll_wheel_distance: dp(114)
+            bar_width: dp(10)
+            viewclass: 'ListObItem'
+            RecycleBoxLayout:
+                default_size: None, dp(100)
+                default_size_hint: 1, None
+                size_hint_y: None
+                height: self.minimum_height
+                orientation: 'vertical'
+                spacing: dp(2)
+    
+    
+
+<AnalogRow@BoxLayout>:
+    canvas.before:
+        Color:
+            rgba: 0.5, 0.5, 0.5, 1
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [10,]
+    name: ''
+    value: ''
+    measure_unit: ''
+    BoxLayout:
+        orientation:"horizontal"
+        Label:
+            size_hint_x:0.6
+            text: root.name
+            halign: 'left'
+            valign: 'center'
+            text_size: self.size
+        Label:
+            size_hint_x:0.2
+            halign: 'left'
+            valign: 'center'
+            text_size: self.size
+            text: root.value
+        Label:
+            size_hint_x:0.2
+            halign: 'left'
+            valign: 'center'
+            text_size: self.size
+            text: root.measure_unit
+            
+<DiscreteRow@BoxLayout>:
+    canvas.before:
+        Color:
+            rgba: 0.5, 0.5, 0.5, 1
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [10,]
+    name: ''
+    value: ''
+    BoxLayout:
+        orientation:"horizontal"
+        Label:
+            size_hint_x:0.7
+            text: root.name
+            halign: 'left'
+            valign: 'center'
+            text_size: self.size
+        Image:
+            allow_stretch: True
+            size_hint_x: None
+            width: "40dp"
+            source: "off.png" if root.value=="0" else "on.png"
+        Label:
+            size_hint_x:0.1
+            text:" "
+            
+<MessageRow@BoxLayout>:
+    message: ''
+    type: 0,1,1,1
+    BoxLayout:
+        orientation:"horizontal"
+        Label:
+            text: root.message
+            color: root.type
+
+<ObjView>:
+    orientation:"vertical"
+    obj_name:""
+    obj_time:""
+    ob_color: (0.5, 0.5, 0.5, 1)
+    tp: tp
+    spacing: dp(10)
+    
+    Button:
+        background_color: 0.5, 0.5, 0.5, 1
+        id: list_button
+        size_hint: .9, None
+        height: "60dp"
+        text: ""
+        padding: ("10dp","10dp")
+        spacing: dp(16)
+        pos_hint: {'center_x': .5, 'center_y': .5}
+        on_press: app.root.show_obj_list()
+        
+    Button:
+        background_color: root.ob_color
+        size_hint: .9, None
+        height: "60dp"
+        padding: ("10dp","10dp")
+        spacing: dp(16)
+        pos_hint: {'center_x': .5, 'center_y': .5}
+        markup:True
+        text:root.obj_name
+    Label:
+        markup:True
+        size_hint_y: None
+        height: "50dp"
+        text:root.obj_time
+    
+    
+    TabbedPanel:
+        id: tp
+        size_hint: .9, 1.0
+        pos_hint: {'center_x': .5, 'center_y': .5}
+        do_default_tab: False
+
+        TabbedPanelItem:
+            rv_analog: rv_analog
+            id :adc
+            text: ''
+            
+            BoxLayout:
+                RecycleView:
+                    id: rv_analog
+                    scroll_wheel_distance: dp(114)
+                    bar_width: dp(10)
+                    viewclass: 'AnalogRow'
+                    RecycleBoxLayout:
+                        default_size: None, dp(56)
+                        default_size_hint: 1, None
+                        size_hint_y: None
+                        height: self.minimum_height
+                        orientation: 'vertical'
+                        spacing: dp(2)
+        TabbedPanelItem:
+            rv_discrete: rv_discrete
+            id :di
+            text: ''
+            BoxLayout:
+                RecycleView:
+                    id: rv_discrete
+                    scroll_wheel_distance: dp(114)
+                    bar_width: dp(10)
+                    viewclass: 'DiscreteRow'
+                    RecycleBoxLayout:
+                        default_size: None, dp(56)
+                        default_size_hint: 1, None
+                        size_hint_y: None
+                        height: self.minimum_height
+                        orientation: 'vertical'
+                        spacing: dp(2)
+        TabbedPanelItem:
+            rv_message: rv_message
+            id :msg
+            text: ''
+            BoxLayout:
+                RecycleView:
+                    id: rv_message
+                    scroll_wheel_distance: dp(114)
+                    bar_width: dp(10)
+                    viewclass: 'MessageRow'
+                    RecycleBoxLayout:
+                        default_size: None, dp(56)
+                        default_size_hint: 1, None
+                        size_hint_y: None
+                        height: self.minimum_height
+                        orientation: 'vertical'
+                        spacing: dp(2)
+
+ 
