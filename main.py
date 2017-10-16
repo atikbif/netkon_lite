@@ -20,6 +20,16 @@ from string import ascii_lowercase
 import xml.etree.ElementTree as ET
 import sys
 
+from kivy.utils import platform
+print(platform)
+
+if platform!='win':
+    from jnius import autoclass
+    from time import sleep
+else:
+    from kivy.core.audio import SoundLoader
+
+
 mqtt_server =""
 mqtt_port = 0
 mqtt_user = ""
@@ -74,14 +84,19 @@ class ObjView(BoxLayout):
 
 class DispRoot(BoxLayout):
     stop = threading.Event()
+    if platform=='win': sound = SoundLoader.load('alarm.wav')
     def __init__(self, **kwargs):
         super(DispRoot, self).__init__(**kwargs)
         
-        threading.Thread(target=self.subscribe_mqtt).start()
+        self._thread = threading.Thread(target=self.subscribe_mqtt)
+        self._thread.daemon=True
+        self._thread.start()
         
         self._view = "obj_list"
         self.add_widget(Factory.ObjListView())
-    def show_current_object(self, name):       
+            
+        
+    def show_current_object(self, name): 
         self._view = "object"
         obj_name = re.search(r'\[b\].+\[/b\]',name)
         obj_time = re.search(r'\[color=.+\] время:.+\[/color\]',name)
@@ -134,7 +149,25 @@ class DispRoot(BoxLayout):
                 msg = ob.get_msg_conf(j)
                 if len(msg):
                     msg_list.append({"message":msg["name"],"type":{"red":[1.,0.,0.,1.],"green":[0.,1.,0.,1.],"yellow":[0.7,0.5,0.1,1.]}[msg["type"]]})
-                    if msg["type"]=="red": color="red"
+                    if msg["type"]=="red": 
+                        if ob.color != "red":
+                            if platform=='win': self.__class__.sound.play()
+                            else:
+                                MediaPlayer = autoclass('android.media.MediaPlayer')
+
+                                mPlayer = MediaPlayer()
+                                mPlayer.setDataSource('alarm.wav')
+                                mPlayer.prepare()
+                                mPlayer.start()
+                                sleep(3)
+                                mPlayer.release()
+                                
+                                PythonActivity = autoclass('org.kivy.android.PythonActivity')
+                                Context = autoclass('android.content.Context')
+                                activity = PythonActivity.mActivity
+                                vibrator = activity.getSystemService(Context.VIBRATOR_SERVICE)
+                                if vibrator.hasVibrator(): vibrator.vibrate(1000)
+                        color="red"
                     if msg["type"]=="yellow" and color!="red": color="yellow"
         ob.upd_msg_data(msg_list) 
         ob.color = color 
