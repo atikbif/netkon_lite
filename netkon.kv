@@ -18,12 +18,21 @@
     
 <ObjListView>: 
     orientation:"vertical"
-    Label:
-        id: header
-        markup:True
-        text: ""
+    BoxLayout:
+        orientation:"horizontal"
         size_hint_y: None
         height: "50dp"
+        Label:
+            id: header
+            markup:True
+            text: ""
+            
+        Image:
+            id: link_state
+            allow_stretch: True
+            size_hint_x: None
+            width: "40dp"
+            source: "link_off.png"
     BoxLayout:
         RecycleView:
             id: rv_object
@@ -119,28 +128,44 @@
     Button:
         background_color: 0.5, 0.5, 0.5, 1
         id: list_button
-        size_hint: .9, None
+        size_hint: 0.9, None
         height: "60dp"
         text: ""
         padding: ("10dp","10dp")
         spacing: dp(16)
         pos_hint: {'center_x': .5, 'center_y': .5}
         on_press: app.root.show_obj_list()
-        
     Button:
+        size_hint_y: None
+        height: '60dp' 
         background_color: root.ob_color
-        size_hint: .9, None
-        height: "60dp"
-        padding: ("10dp","10dp")
-        spacing: dp(16)
         pos_hint: {'center_x': .5, 'center_y': .5}
+        size_hint_x: .9
         markup:True
         text:root.obj_name
-    Label:
-        markup:True
+    BoxLayout:
+        orientation:"horizontal"
         size_hint_y: None
-        height: "50dp"
-        text:root.obj_time
+        height: '60dp' 
+        padding: ("70dp","10dp")        
+        Label:
+            #size_hint_y: None
+            #height: '50dp'
+            size_hint_x: 0.6
+            markup:True
+            text:root.obj_time
+            halign: 'left'
+            valign: 'center'
+            text_size: self.size
+        CheckBox:
+            id: sound_check
+            color:[1,1,1,4]
+            size_hint_x: 0.1
+            active: True
+            on_active: app.root.activate_sound(*args)
+    
+    
+        
     
     
     TabbedPanel:

@@ -13,6 +13,7 @@ from kivy.factory import Factory
 from kivy.uix.label import Label
 import threading
 import paho.mqtt.subscribe as subscribe
+import paho.mqtt.client as mqtt
 
 from random import sample
 from string import ascii_lowercase
@@ -21,13 +22,16 @@ import xml.etree.ElementTree as ET
 import sys
 
 from kivy.utils import platform
-print(platform)
+from time import sleep
 
 if platform!='win':
-    from jnius import autoclass
-    from time import sleep
+    from jnius import autoclass 
 else:
     from kivy.core.audio import SoundLoader
+    
+from kivy.config import Config
+Config.set('graphics', 'allow_screensaver', '0')
+
 
 
 mqtt_server =""
@@ -40,6 +44,14 @@ mqtt_clients = []
 
 PY2 = sys.version_info[0] == 2
 
+def check_objects_update_time(dt):
+    for ob in objList:
+        ob_time = ob.time_of_update
+        if ob_time:
+            diff = (datetime.now() - ob_time).seconds
+            if diff > 30*60:
+                ob.color = "gray"
+    Clock.schedule_once(check_objects_update_time, 60)
 
 class ObjListView(BoxLayout):
     def __init__(self, **kwargs):
@@ -48,6 +60,7 @@ class ObjListView(BoxLayout):
         self.ids.rv_object.data = [{'name': objList[x].name,'upd_time':'время:' + objList[x].time_of_update.strftime("%d-%m-%Y %H:%M:%S") if objList[x].time_of_update is not None else "нет данных",'ob_color':{"red":(1.,0.,0.,1.),"green":(0.,1.,0.,1.),"yellow":(0.7,0.5,0.1,1.),"gray":(0.95,0.95,0.95,1.)}[objList[x].color]}  for x in range(len(objList))]
         Clock.schedule_once(self.update_gui, 1)
     def update_gui(self,dt):
+        self.ids.link_state.source = "link_on.png" if app.root.connect_state else "link_off.png"
         self.ids.rv_object.data = [{'name': objList[x].name,'upd_time':'время:' + objList[x].time_of_update.strftime("%d-%m-%Y %H:%M:%S") if objList[x].time_of_update is not None else "нет данных",'ob_color':{"red":(1.,0.,0.,1.),"green":(0.,1.,0.,1.),"yellow":(0.7,0.5,0.1,1.),"gray":(0.95,0.95,0.95,1.)}[objList[x].color]}  for x in range(len(objList))]
         Clock.schedule_once(self.update_gui, 1)    
 
@@ -60,7 +73,8 @@ class ObjView(BoxLayout):
         self.ids.di.text = "дискретные"
         self.ids.msg.text = "сообщения"
         if self._ob is not None:
-            self.ob_color = {"red":(1.,0.,0.,1.),"green":(0.,1.,0.,1.),"yellow":(0.7,0.5,0.1,1.),"gray":(0.95,0.95,0.95,1.)}[self._ob.color]
+            self.ids.sound_check.active = self._ob.sound_on
+            self.ob_color = {"red":(1.,0.,0.,1.),"green":(0.,1.,0.,1.),"yellow":(0.7,0.5,0.1,4.),"gray":(0.95,0.95,0.95,1.)}[self._ob.color]
             self.ids.rv_analog.data = [{'name': self._ob.get_adc_data(x)["name"],'value':'{0:0.02f}'.format(self._ob.get_adc_data(x)["value"]),'measure_unit':self._ob.get_adc_data(x)["measure_unit"]}
                             for x in range(self._ob.get_adc_number())]
             self.ids.rv_discrete.data = [{'name': self._ob.get_di_data(x)["name"],'value':str(self._ob.get_di_data(x)["value"])}
@@ -71,7 +85,7 @@ class ObjView(BoxLayout):
         
     def update_gui(self,dt):
         if self._ob is not None:
-            self.ob_color = {"red":(1.,0.,0.,1.),"green":(0.,1.,0.,1.),"yellow":(0.7,0.5,0.1,1.),"gray":(0.95,0.95,0.95,1.)}[self._ob.color]
+            self.ob_color = {"red":(1.,0.,0.,1.),"green":(0.,1.,0.,1.),"yellow":(0.7,0.5,0.1,4.),"gray":(0.95,0.95,0.95,1.)}[self._ob.color]
             self.obj_time = r"[color=C0C0C0]время:" + self._ob.time_of_update.strftime("%d-%m-%Y %H:%M:%S") if self._ob.time_of_update is not None else "нет данных" + r"[/color]"
             self.ids.rv_analog.data = [{'name': self._ob.get_adc_data(x)["name"],'value':'{0:0.02f}'.format(self._ob.get_adc_data(x)["value"]),'measure_unit':self._ob.get_adc_data(x)["measure_unit"]}
                         for x in range(self._ob.get_adc_number())]
@@ -84,6 +98,7 @@ class ObjView(BoxLayout):
 
 class DispRoot(BoxLayout):
     stop = threading.Event()
+    connect_state = False
     if platform=='win': sound = SoundLoader.load('alarm.wav')
     def __init__(self, **kwargs):
         super(DispRoot, self).__init__(**kwargs)
@@ -94,10 +109,10 @@ class DispRoot(BoxLayout):
         
         self._view = "obj_list"
         self.add_widget(Factory.ObjListView())
+        self.current_obj = None
             
         
     def show_current_object(self, name): 
-        self._view = "object"
         obj_name = re.search(r'\[b\].+\[/b\]',name)
         obj_time = re.search(r'\[color=.+\] время:.+\[/color\]',name)
         
@@ -106,17 +121,25 @@ class DispRoot(BoxLayout):
         obj_name = "" if obj_name is None else obj_name.group(0)
         obj_name = re.sub(r'\[/?.\]','',obj_name).strip()
 
-        current_obj = Factory.ObjView(obj_name)
-        current_obj.obj_name = obj_name
-        current_obj.obj_time = "нет данных" if obj_time is None else obj_time.group(0)
-        current_obj.ids.list_button.text="Вернуться к списку объектов"
-        self.add_widget(current_obj)
+        self.current_obj = Factory.ObjView(obj_name)
+        self.current_obj.obj_name = obj_name
+        self.current_obj.obj_time = "нет данных" if obj_time is None else obj_time.group(0)
+        self.current_obj.ids.list_button.text="Вернуться к списку объектов"
+        self.add_widget(self.current_obj)
         
     def show_obj_list(self):
-        self._view = "obj_list"
+        self.current_obj = None
         self.clear_widgets()
         ob_list = ObjListView()
         self.add_widget(ob_list)
+        
+    def activate_sound(self,checkbox, value):
+        if self.current_obj is not None:
+            
+            ob = get_ob_by_name(self.current_obj.obj_name)
+            if ob: 
+                ob.sound_on = value
+                #print(value)
         
     def update_ob_data(self,ob,mqtt_data):
         ob.time_of_update = datetime.now()
@@ -148,44 +171,80 @@ class DispRoot(BoxLayout):
             if value:
                 msg = ob.get_msg_conf(j)
                 if len(msg):
-                    msg_list.append({"message":msg["name"],"type":{"red":[1.,0.,0.,1.],"green":[0.,1.,0.,1.],"yellow":[0.7,0.5,0.1,1.]}[msg["type"]]})
+                    msg_list.append({"message":msg["name"],"type":{"red":[1.,0.,0.,1.],"green":[0.,1.,0.,1.],"yellow":[0.7,0.5,0.1,4.]}[msg["type"]]})
                     if msg["type"]=="red": 
                         if ob.color != "red":
-                            if platform=='win': self.__class__.sound.play()
-                            else:
-                                MediaPlayer = autoclass('android.media.MediaPlayer')
+                            if ob.sound_on:
+                                if platform=='win': self.__class__.sound.play()
+                                else:
+                                    MediaPlayer = autoclass('android.media.MediaPlayer')
 
-                                mPlayer = MediaPlayer()
-                                mPlayer.setDataSource('alarm.wav')
-                                mPlayer.prepare()
-                                mPlayer.start()
-                                sleep(3)
-                                mPlayer.release()
-                                
-                                PythonActivity = autoclass('org.kivy.android.PythonActivity')
-                                Context = autoclass('android.content.Context')
-                                activity = PythonActivity.mActivity
-                                vibrator = activity.getSystemService(Context.VIBRATOR_SERVICE)
-                                if vibrator.hasVibrator(): vibrator.vibrate(1000)
+                                    mPlayer = MediaPlayer()
+                                    mPlayer.setDataSource('alarm.wav')
+                                    mPlayer.prepare()
+                                    mPlayer.start()
+                                    sleep(3)
+                                    mPlayer.release()
+                                    
+                                    PythonActivity = autoclass('org.kivy.android.PythonActivity')
+                                    Context = autoclass('android.content.Context')
+                                    activity = PythonActivity.mActivity
+                                    vibrator = activity.getSystemService(Context.VIBRATOR_SERVICE)
+                                    if vibrator.hasVibrator(): vibrator.vibrate(1000)
                         color="red"
                     if msg["type"]=="yellow" and color!="red": color="yellow"
         ob.upd_msg_data(msg_list) 
         ob.color = color 
+
+    def _on_connect(self,client, userdata, flags, rc):
+        if rc != 0: 
+            self.__class__.connect_state = False
+            #print("NOT_CONNECT",str(rc))
+        else: 
+            self.__class__.connect_state = True
+            #print("on_connect")
+        topic_list = [(ob.topic,2) for ob in objList if len(ob.topic)>=1]
+        client.subscribe(topic_list)
+        pass
         
+    def _on_message(self,client,userdata, msg):
+        ob = get_ob_by_topic(msg.topic)
+        if ob is not None:
+            self.update_ob_data(ob,msg.payload)
+    
+    def _on_disconnect(self,client, userdata, rc):
+        self.__class__.connect_state = False
+        #print("ON_DISCONNECT")
+        
+    
     def subscribe_mqtt(self):
         while True:
             if self.stop.is_set():
                 return
             cnt = len(objList)
             if cnt:
-                topic_list = [ob.topic for ob in objList if len(ob.topic)>=1]
-                try:
-                    msg = subscribe.simple(topic_list, hostname=mqtt_server,port=mqtt_port,auth= {'username':mqtt_user, 'password':mqtt_password},client_id="netkon"+"".join(sample(ascii_lowercase, 15)))
-                    ob = get_ob_by_topic(msg.topic)
-                    if ob is not None:
-                        self.update_ob_data(ob,msg.payload)
-                except Exception as ex:
-                    pass
+                while True:
+                    try:
+                        client = mqtt.Client(client_id="netkon"+"".join(sample(ascii_lowercase, 15)))
+                        client.connect(mqtt_server, port=mqtt_port)
+                        client.username_pw_set(mqtt_user, mqtt_password)
+                        client.on_message = self._on_message
+                        client.on_connect = self._on_connect
+                        client.on_disconnect = self._on_disconnect
+                        client.loop_forever()
+                        break
+                    except Exception as ex:
+                        sleep(3)
+                        #print(str(ex))
+                
+                # topic_list = [ob.topic for ob in objList if len(ob.topic)>=1]
+                # try:
+                    # msg = subscribe.simple(topic_list, hostname=mqtt_server,port=mqtt_port,auth= {'username':mqtt_user, 'password':mqtt_password},client_id="netkon"+"".join(sample(ascii_lowercase, 15)))
+                    # ob = get_ob_by_topic(msg.topic)
+                    # if ob is not None:
+                        # self.update_ob_data(ob,msg.payload)
+                # except Exception as ex:
+                    # pass
 
 class ObjState():
     def __init__(self, name):
@@ -197,6 +256,15 @@ class ObjState():
         self._msg_data = []
         self._msg_conf =[]
         self._topic = ""
+        self._sound_on = True
+        
+    @property
+    def sound_on(self):
+        return self._sound_on
+    
+    @sound_on.setter
+    def sound_on(self,value):
+        self._sound_on = value
       
     @property
     def topic(self):
@@ -289,6 +357,12 @@ def readObjectsFromFile():
     
     try:
         tree = ET.parse(App.get_running_app().user_data_dir + '/conf.xml')
+    except:
+        try:
+            tree = ET.parse('/sdcard/Download/conf.xml')
+        except:
+            tree = ET.parse('default.xml')
+    try:
         root = tree.getroot()
         
         for xml_mqtt in root.findall('mqtt'):
@@ -322,7 +396,6 @@ def readObjectsFromFile():
     except Exception as ex:
         ob = ObjState(str(ex))
         res_list.append(ob)
-        #print(str(ex))
    
     return sorted(res_list,key=lambda ob: ob.name)   
 
@@ -345,6 +418,7 @@ class NetkonApp(App):
     def build(self):
         global objList
         objList =  readObjectsFromFile()
+        check_objects_update_time(None)
         return DispRoot()
     def on_pause(self):
         return True
